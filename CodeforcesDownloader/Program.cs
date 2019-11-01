@@ -30,27 +30,40 @@ namespace CodeforcesDownloader
 
       using var restClient = new Client(new Throttle(TimeSpan.FromMilliseconds(250)));
 
-      Log.Trace("Get contests list");
-      var contests = restClient.ContestList(false).Result.ToDictionary(c => c.Id);
-//      Log.Trace("Get gyms list");
-//      var gyms = restClient.ContestList(true).Result.ToDictionary(c => c.Id);
+//      Log.Trace("Get contests list");
+//      var contests = restClient.ContestList(false).Result.ToDictionary(c => c.Id);
+      Log.Trace("Get gyms list");
+      var gyms = restClient.ContestList(true).Result.ToDictionary(c => c.Id);
 
-      using var sourceTextLoader = new SubmissionSourceTextLoader(new Throttle(TimeSpan.FromMilliseconds(1000), true));
-      
+      var htmlRequestsThrottle = new Throttle(TimeSpan.FromMilliseconds(1000), true);
+
+      using var sourceTextLoader = new SubmissionSourceTextLoader(htmlRequestsThrottle, options.Cookie);
+
+      var statementDownloader = new StatementDownloader(htmlRequestsThrottle, options.WgetExePath);
+
       foreach (var submission in EnumerateAllUserSubmissions(restClient, options.Handle))
       {
-        bool isGym = !contests.ContainsKey(submission.ContestId.Value);
+        bool isGym = gyms.ContainsKey(submission.ContestId.Value);
+        if (isGym && options.Cookie == default)
+        {
+          Log.Warn(
+            $"Cannot process submission for gym #{submission.ContestId}: specify cookie for authorized requests support");
+          continue;
+        }
 
-        var submissionFolder = Path.Join(
+        var problemFolder = GetOrCreateDirectory(Path.Join(
           destinationFolder,
           NormalizeFileName(options.Handle),
           isGym ? "gyms" : "contests",
           submission.ContestId.ToString(),
-          NormalizeFileName($"{submission.Problem.Index}. {submission.Problem.Name}"));
+          NormalizeFileName($"{submission.Problem.Index}. {submission.Problem.Name}"))).FullName;
+
+        if (!isGym)
+          statementDownloader.DownloadStatement(submission.Problem, isGym, problemFolder);
 
         var sourceTextFileName = $"{submission.Id}.{GetSourceTextExt(submission.ProgrammingLanguage)}";
 
-        string filePath = Path.Combine(GetOrCreateDirectory(submissionFolder).FullName, sourceTextFileName);
+        string filePath = Path.Combine(problemFolder, sourceTextFileName);
         if (File.Exists(filePath))
         {
           Log.Info($"File already exists: {filePath}");

@@ -9,7 +9,7 @@ using NLog;
 
 namespace CodeforcesDownloader
 {
-  internal class SubmissionSourceTextLoader : IDisposable
+  internal sealed class SubmissionSourceTextLoader : IDisposable
   {
     private readonly Throttle throttle;
     private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
@@ -50,7 +50,7 @@ namespace CodeforcesDownloader
       this.httpClient.Dispose();
     }
 
-    public SubmissionSourceTextLoader(Throttle throttle)
+    public SubmissionSourceTextLoader(Throttle throttle, string cookie = null)
     {
       this.throttle = throttle;
       this.httpClient = new HttpClient(new HttpClientHandler
@@ -58,6 +58,11 @@ namespace CodeforcesDownloader
         AutomaticDecompression = DecompressionMethods.GZip | DecompressionMethods.Deflate,
         DefaultProxyCredentials = CredentialCache.DefaultCredentials,
       });
+
+      if (cookie != null)
+      {
+        this.httpClient.DefaultRequestHeaders.Add("Cookie", cookie);
+      }
     }
   }
 }
