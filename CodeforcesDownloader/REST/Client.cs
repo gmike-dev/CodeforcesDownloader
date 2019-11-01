@@ -28,6 +28,14 @@ namespace CodeforcesDownloader.REST
       return response.Result;
     }
 
+    public async Task<Contest[]> ContestList(bool gym)
+    {
+      var requestUri = $"https://codeforces.com/api/contest.list?gym={gym}";
+      var responseString = await this.throttle.Do(() => this.httpClient.GetStringAsync(requestUri));
+      var response = JsonSerializer.Deserialize<Response<Contest[]>>(responseString);
+      return response.Result;
+    }
+
     public Client(Throttle throttle)
     {
       this.throttle = throttle;

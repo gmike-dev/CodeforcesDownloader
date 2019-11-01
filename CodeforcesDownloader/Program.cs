@@ -29,11 +29,20 @@ namespace CodeforcesDownloader
       Log.Trace($"Download data. Destination - {destinationFolder}");
 
       using var restClient = new Client(new Throttle(TimeSpan.FromMilliseconds(250)));
+
+      Log.Trace("Get contests list");
+      var contests = restClient.ContestList(false).Result.ToDictionary(c => c.Id);
+
+//      Log.Trace("Get gyms list");
+//      var gyms = restClient.ContestList(true).Result.ToDictionary(c => c.Id);
+
       using var sourceTextLoader = new SubmissionSourceTextLoader(new Throttle(TimeSpan.FromMilliseconds(1000), true));
       foreach (var submission in EnumerateAllUserSubmissions(restClient, options.Handle))
       {
+        bool isGym = !contests.ContainsKey(submission.ContestId.Value);
+
         var submissionFolder = Path.Join(
-          destinationFolder, options.Handle, "contests", submission.ContestId.ToString());
+          destinationFolder, options.Handle, isGym ? "gyms" : "contests", submission.ContestId.ToString());
 
         var sourceTextFileName = $"{submission.Id}.{GetSourceTextExt(submission.ProgrammingLanguage)}";
 
@@ -43,7 +52,7 @@ namespace CodeforcesDownloader
           Log.Info($"File already exists: {filePath}");
           continue;
         }
-        var sourceText = sourceTextLoader.GetSourceTextAsync(submission).Result;
+        var sourceText = sourceTextLoader.GetSourceTextAsync(submission, isGym).Result;
         if (sourceText == null)
           continue;
         using var streamWriter = new StreamWriter(filePath);

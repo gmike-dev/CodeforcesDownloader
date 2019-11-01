@@ -16,14 +16,16 @@ namespace CodeforcesDownloader
 
     private readonly HttpClient httpClient;
 
-    public async Task<string> GetSourceTextAsync(Submission submission)
+    public async Task<string> GetSourceTextAsync(Submission submission, bool gym)
     {
       if (submission == null)
         throw new ArgumentNullException(nameof(submission));
       if (submission.ContestId == null)
         throw new ArgumentNullException(nameof(submission.ContestId));
 
-      var pageUri = $"https://codeforces.com/contest/{submission.ContestId}/submission/{submission.Id}";
+      var contestType = gym ? "gym" : "contest";
+
+      var pageUri = $"https://codeforces.com/{contestType}/{submission.ContestId}/submission/{submission.Id}";
       Log.Trace($"Download {pageUri}");
       var response = await this.throttle.Do(() => this.httpClient.GetAsync(pageUri));
       response.EnsureSuccessStatusCode();
