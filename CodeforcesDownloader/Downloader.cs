@@ -14,7 +14,7 @@ namespace CodeforcesDownloader
     private readonly Options options;
     private readonly Client restClient;
     private readonly string destinationFolder;
-    private readonly SubmissionSourceTextLoader sourceTextLoader;
+    private readonly SourceTextLoader sourceTextLoader;
     private readonly StatementDownloader statementDownloader;
     private readonly Lazy<IReadOnlyDictionary<int, Contest>> gyms;
 
@@ -117,7 +117,7 @@ namespace CodeforcesDownloader
       this.destinationFolder = Environment.ExpandEnvironmentVariables(options.Folder);
       this.restClient = new Client(new Throttle(TimeSpan.FromMilliseconds(250)));
       var htmlRequestsThrottle = new Throttle(TimeSpan.FromMilliseconds(1000), true);
-      this.sourceTextLoader = new SubmissionSourceTextLoader(htmlRequestsThrottle, options.Cookie);
+      this.sourceTextLoader = new SourceTextLoader(htmlRequestsThrottle, options.Cookie);
       this.statementDownloader = new StatementDownloader(htmlRequestsThrottle, options.WgetExePath);
       this.gyms = new Lazy<IReadOnlyDictionary<int, Contest>>(this.LoadGyms);
     }

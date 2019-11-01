@@ -9,7 +9,7 @@ using NLog;
 
 namespace CodeforcesDownloader
 {
-  internal sealed class SubmissionSourceTextLoader : IDisposable
+  internal sealed class SourceTextLoader : IDisposable
   {
     private readonly Throttle throttle;
     private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
@@ -50,7 +50,7 @@ namespace CodeforcesDownloader
       this.httpClient.Dispose();
     }
 
-    public SubmissionSourceTextLoader(Throttle throttle, string cookie = null)
+    public SourceTextLoader(Throttle throttle, string cookie = null)
     {
       this.throttle = throttle;
       this.httpClient = new HttpClient(new HttpClientHandler

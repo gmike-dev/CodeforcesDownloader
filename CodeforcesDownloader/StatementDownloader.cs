@@ -57,7 +57,7 @@ namespace CodeforcesDownloader
 
     private static void FixHtmlContentReferences(HtmlDocument doc, string contentDirectory)
     {
-      var head = doc.DocumentNode.ChildNodes["html"].ChildNodes["head"];
+      var head = doc.DocumentNode.ChildNodes["html"];
       var innerHtml = head.InnerHtml;
       foreach (var contentFile in Directory.EnumerateFiles(contentDirectory))
       {
