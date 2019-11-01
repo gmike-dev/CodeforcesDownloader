@@ -32,17 +32,21 @@ namespace CodeforcesDownloader
 
       Log.Trace("Get contests list");
       var contests = restClient.ContestList(false).Result.ToDictionary(c => c.Id);
-
 //      Log.Trace("Get gyms list");
 //      var gyms = restClient.ContestList(true).Result.ToDictionary(c => c.Id);
 
       using var sourceTextLoader = new SubmissionSourceTextLoader(new Throttle(TimeSpan.FromMilliseconds(1000), true));
+      
       foreach (var submission in EnumerateAllUserSubmissions(restClient, options.Handle))
       {
         bool isGym = !contests.ContainsKey(submission.ContestId.Value);
 
         var submissionFolder = Path.Join(
-          destinationFolder, options.Handle, isGym ? "gyms" : "contests", submission.ContestId.ToString());
+          destinationFolder,
+          NormalizeFileName(options.Handle),
+          isGym ? "gyms" : "contests",
+          submission.ContestId.ToString(),
+          NormalizeFileName($"{submission.Problem.Index}. {submission.Problem.Name}"));
 
         var sourceTextFileName = $"{submission.Id}.{GetSourceTextExt(submission.ProgrammingLanguage)}";
 
@@ -61,6 +65,15 @@ namespace CodeforcesDownloader
       }
 
       Log.Info($"Done. Check folder {destinationFolder}");
+    }
+
+    private static string NormalizeFileName(string fileName)
+    {
+      foreach (var invalidFileNameChar in Path.GetInvalidFileNameChars())
+      {
+        fileName = fileName.Replace(invalidFileNameChar, '_');
+      }
+      return fileName;
     }
 
     private static string GetSourceTextExt(string programmingLanguage)
