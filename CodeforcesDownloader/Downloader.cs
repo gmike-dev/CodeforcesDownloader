@@ -32,7 +32,7 @@ namespace CodeforcesDownloader
 
     private void ProcessSubmission(Submission submission)
     {
-      bool isGym = this.Gyms.ContainsKey(submission.ContestId.Value);
+      var isGym = this.Gyms.ContainsKey(submission.ContestId.Value);
       if (isGym && this.options.Cookie == default)
       {
         Log.Warn(
@@ -62,7 +62,7 @@ namespace CodeforcesDownloader
     {
       var sourceTextFileName = $"{submission.Id}.{GetSourceTextExt(submission.ProgrammingLanguage)}";
 
-      string filePath = Path.Combine(problemFolder, sourceTextFileName);
+      var filePath = Path.Combine(problemFolder, sourceTextFileName);
       if (File.Exists(filePath))
       {
         Log.Info($"File already exists: {filePath}");
