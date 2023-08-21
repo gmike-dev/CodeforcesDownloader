@@ -13,7 +13,7 @@ public sealed class Options
     HelpText = "Folder to save the data")]
   public string Folder { get; set; }
 
-  [Option("--cookie", Required = false, HelpText = "Folder to save the data")]
+  [Option("--cookie", Required = false, HelpText = "Site cookies (required for gyms load only)")]
   public string Cookie { get; set; }
 
   [Option("--wget-exe", Required = false, Default = "wget", HelpText = "Path to wget.exe")]
