@@ -2,30 +2,29 @@
 using System.IO;
 using NLog;
 
-namespace CodeforcesDownloader
+namespace CodeforcesDownloader;
+
+internal static class Utils
 {
-  internal static class Utils
+  private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+
+  public static string NormalizeFileName(string fileName)
   {
-    private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
-
-    public static string NormalizeFileName(string fileName)
+    foreach (var invalidFileNameChar in Path.GetInvalidFileNameChars())
     {
-      foreach (var invalidFileNameChar in Path.GetInvalidFileNameChars())
-      {
-        fileName = fileName.Replace(invalidFileNameChar, '_');
-      }
-      return fileName;
+      fileName = fileName.Replace(invalidFileNameChar, '_');
     }
+    return fileName;
+  }
 
-    public static DirectoryInfo GetOrCreateDirectory(string targetPath)
-    {
-      var downloadFolder = new DirectoryInfo(Environment.ExpandEnvironmentVariables(targetPath));
-      if (downloadFolder.Exists)
-        return downloadFolder;
-
-      Log.Trace($"Create folder {downloadFolder.FullName}");
-      downloadFolder.Create();
+  public static DirectoryInfo GetOrCreateDirectory(string targetPath)
+  {
+    var downloadFolder = new DirectoryInfo(Environment.ExpandEnvironmentVariables(targetPath));
+    if (downloadFolder.Exists)
       return downloadFolder;
-    }
+
+    Log.Trace($"Create folder {downloadFolder.FullName}");
+    downloadFolder.Create();
+    return downloadFolder;
   }
 }
