@@ -3,31 +3,36 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using CodeforcesDownloader.REST;
-using NLog;
+using CodeforcesDownloader.REST.Models;
+using Microsoft.Extensions.Logging;
 
 namespace CodeforcesDownloader;
 
-internal sealed class Downloader : IDisposable
+internal interface IDownloader
 {
-  private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
-    
+  void Run();
+}
+
+internal sealed class Downloader : IDownloader
+{
+  private readonly ILogger<Downloader> logger;
   private readonly Options options;
-  private readonly Client restClient;
+  private readonly IRestClient restClient;
   private readonly string destinationFolder;
-  private readonly SourceTextLoader sourceTextLoader;
-  private readonly StatementDownloader statementDownloader;
+  private readonly ISourceTextLoader sourceTextLoader;
+  private readonly IStatementDownloader statementDownloader;
   private readonly Lazy<IReadOnlyDictionary<int, Contest>> gyms;
 
   private IReadOnlyDictionary<int, Contest> Gyms => this.gyms.Value;
 
   public void Run()
   {
-    Log.Trace($"Download data. Destination - {this.destinationFolder}");
+    this.logger.LogTrace("Download data to {destinationFolder}", this.destinationFolder);
 
     foreach (var submission in this.EnumerateAllUserSubmissions())
       this.ProcessSubmission(submission);
 
-    Log.Info($"Done. Check folder {this.destinationFolder}");
+    this.logger.LogInformation("Done. Check {destinationFolder}", this.destinationFolder);
   }
 
   private void ProcessSubmission(Submission submission)
@@ -35,12 +40,13 @@ internal sealed class Downloader : IDisposable
     var isGym = this.Gyms.ContainsKey(submission.ContestId.Value);
     if (isGym && this.options.Cookie == default)
     {
-      Log.Warn(
-        $"Cannot process submission for gym #{submission.ContestId}: specify cookie for authorized requests support");
+      this.logger.LogWarning(
+        "Cannot process submission for gym {gymId}: specify cookie for authorized requests support",
+        submission.ContestId);
       return;
     }
 
-    var problemFolder = Utils.GetOrCreateDirectory(Path.Join(this.destinationFolder,
+    var problemFolder = this.GetOrCreateDirectory(Path.Join(this.destinationFolder,
       Utils.NormalizeFileName(this.options.Handle),
       isGym ? "gyms" : "contests",
       submission.ContestId.ToString(),
@@ -51,10 +57,21 @@ internal sealed class Downloader : IDisposable
 
     this.DownloadSourceText(submission, isGym, problemFolder);
   }
-    
+
+  private DirectoryInfo GetOrCreateDirectory(string targetPath)
+  {
+    var downloadFolder = new DirectoryInfo(Environment.ExpandEnvironmentVariables(targetPath));
+    if (downloadFolder.Exists)
+      return downloadFolder;
+
+    this.logger.LogTrace("Create {downloadFolder}", downloadFolder.FullName);
+    downloadFolder.Create();
+    return downloadFolder;
+  }
+
   private Dictionary<int, Contest> LoadGyms()
   {
-    Log.Trace("Load gyms list");
+    this.logger.LogTrace("Load gyms list");
     return this.restClient.ContestList(true).Result.ToDictionary(c => c.Id);
   }
 
@@ -65,7 +82,7 @@ internal sealed class Downloader : IDisposable
     var filePath = Path.Combine(problemFolder, sourceTextFileName);
     if (File.Exists(filePath))
     {
-      Log.Info($"File already exists: {filePath}");
+      this.logger.LogInformation("{file} already exists", filePath);
       return;
     }
     var sourceText = this.sourceTextLoader.GetSourceTextAsync(submission, isGym).Result;
@@ -73,7 +90,7 @@ internal sealed class Downloader : IDisposable
       return;
     using var streamWriter = new StreamWriter(filePath);
     streamWriter.Write(sourceText);
-    Log.Info($"File created: {filePath}");
+    this.logger.LogInformation("{file} created", filePath);
   }
 
   private static string GetSourceTextExt(string programmingLanguage)
@@ -106,19 +123,15 @@ internal sealed class Downloader : IDisposable
     }
   }
 
-  public void Dispose()
+  public Downloader(Options options, ILogger<Downloader> logger, ISourceTextLoader sourceTextLoader,
+    IStatementDownloader statementDownloader, IRestClient restClient)
   {
-    this.restClient.Dispose();
-  }
-
-  public Downloader(Options options)
-  {
+    this.logger = logger;
     this.options = options;
     this.destinationFolder = Environment.ExpandEnvironmentVariables(options.Folder);
-    this.restClient = new Client(new Throttle(TimeSpan.FromMilliseconds(250)));
-    var htmlRequestsThrottle = new Throttle(TimeSpan.FromMilliseconds(1000), true);
-    this.sourceTextLoader = new SourceTextLoader(htmlRequestsThrottle, options.Cookie);
-    this.statementDownloader = new StatementDownloader(htmlRequestsThrottle, options.WgetExePath);
+    this.restClient = restClient;
+    this.sourceTextLoader = sourceTextLoader;
+    this.statementDownloader = statementDownloader;
     this.gyms = new Lazy<IReadOnlyDictionary<int, Contest>>(this.LoadGyms);
   }
 }

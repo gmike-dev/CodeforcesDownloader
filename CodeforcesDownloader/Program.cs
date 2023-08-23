@@ -1,34 +1,59 @@
 ﻿using System;
+using CodeforcesDownloader.REST;
 using CommandLine;
-using NLog;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace CodeforcesDownloader;
 
 public static class Program
 {
-  private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
-
   public static void Main(string[] args)
   {
-    Log.Trace($"Start a program");
     SubscribeToUnhandledException();
-    Log.Trace($"Parse arguments");
     Parser.Default.ParseArguments<Options>(args)
       .WithParsed(Run)
       .WithNotParsed(_ => Environment.Exit(-1));
   }
 
-  private static void Run(Options options)
+  private static void Run(Options commandLineOptions)
   {
-    using var downloader = new Downloader(options);
+    using var serviceProvider = new ServiceCollection()
+      .AddLogging(loggingBuilder =>
+      {
+        loggingBuilder
+          .AddSimpleConsole(options =>
+          {
+            options.SingleLine = true;
+            options.TimestampFormat = "HH:mm:ss ";
+          })
+          .SetMinimumLevel(LogLevel.Trace);
+      })
+      .AddSingleton(commandLineOptions)
+      .AddSingleton<IRestClient, RestClient>()
+      .AddSingleton<IThrottleFactory, ThrottleFactory>()
+      .AddTransient<ISourceTextLoader, SourceTextLoader>()
+      .AddTransient<IStatementDownloader, StatementDownloader>()
+      .AddTransient<IDownloader, Downloader>()
+      .BuildServiceProvider();
+    
+    // var loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
+    // var logger = loggerFactory.CreateLogger("test");
+    // logger.LogTrace("Trace line");
+    // logger.LogInformation("Information line");
+    // logger.LogWarning("Warning line");
+    // logger.LogError("Error line");
+    // Console.Error.WriteLine("Error in error stream");
+
+    var downloader = serviceProvider.GetRequiredService<IDownloader>();
     downloader.Run();
   }
 
   private static void SubscribeToUnhandledException()
   {
-    AppDomain.CurrentDomain.UnhandledException += (s, e) =>
+    AppDomain.CurrentDomain.UnhandledException += (_, e) =>
     {
-      Log.Error(e.ExceptionObject);
+      Console.Error.WriteLine(e.ExceptionObject);
       if (e.IsTerminating)
         Environment.Exit(-1);
     };

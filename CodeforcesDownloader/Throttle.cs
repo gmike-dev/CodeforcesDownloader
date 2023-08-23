@@ -3,13 +3,23 @@ using System.Threading;
 
 namespace CodeforcesDownloader;
 
-public class Throttle
+internal interface IThrottleFactory
+{
+  Throttle Create(TimeSpan interval, bool variableTimeout = false);
+}
+
+internal sealed class ThrottleFactory : IThrottleFactory
+{
+  public Throttle Create(TimeSpan interval, bool variableTimeout = false) => new(interval, variableTimeout);
+}
+
+public sealed class Throttle
 {
   private readonly TimeSpan interval;
   private readonly bool variableTimeout;
   private DateTime lastCall;
   private uint counter;
-  private readonly Random random = new Random();
+  private readonly Random random = new();
 
   public T Do<T>(Func<T> func)
   {

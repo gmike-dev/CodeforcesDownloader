@@ -3,20 +3,25 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
-using CodeforcesDownloader.REST;
+using CodeforcesDownloader.REST.Models;
 using HtmlAgilityPack;
-using NLog;
+using Microsoft.Extensions.Logging;
 
 namespace CodeforcesDownloader;
 
-internal sealed class StatementDownloader
+internal interface IStatementDownloader
+{
+  void DownloadStatement(Problem problem, bool gym, string problemDirectory);
+}
+
+internal sealed class StatementDownloader : IStatementDownloader
 {
   private readonly Throttle throttle;
   private readonly string wgetExePath;
   private readonly string lang;
-  private static readonly ILogger Log = LogManager.GetCurrentClassLogger();
+  private readonly ILogger<StatementDownloader> logger;
   private const string StatementFileName = "statement.html";
-  private static readonly string ContentDirectoryName = $"{StatementFileName}_files";
+  private const string ContentDirectoryName = $"{StatementFileName}_files";
 
   public void DownloadStatement(Problem problem, bool gym, string problemDirectory)
   {
@@ -30,7 +35,7 @@ internal sealed class StatementDownloader
     var statementFileName = Path.Join(problemDirectory, "statement.html");
     if (File.Exists(statementFileName))
     {
-      Log.Trace($"File exists: {statementFileName}");
+      this.logger.LogTrace("{statementFile} exists", statementFileName);
       return;
     }
 
@@ -42,7 +47,7 @@ internal sealed class StatementDownloader
     var statementHtmlFile = Directory.EnumerateFiles(contentDirectory, $"{problem.Index}*.html").FirstOrDefault();
     if (statementHtmlFile == null)
     {
-      Log.Error($"Downloaded statement html not found");
+      this.logger.LogError("Downloaded statement html not found");
       Directory.Delete(contentDirectory, true);
       return;
     }
@@ -50,7 +55,7 @@ internal sealed class StatementDownloader
 
     var doc = new HtmlDocument();
     doc.Load(statementFileName);
-    TrimStatementHtmlContent(doc);
+    this.TrimStatementHtmlContent(doc);
     FixHtmlContentReferences(doc, contentDirectory);
     doc.Save(statementFileName);
   }
@@ -67,12 +72,12 @@ internal sealed class StatementDownloader
     head.InnerHtml = innerHtml;
   }
 
-  private static void TrimStatementHtmlContent(HtmlDocument doc)
+  private void TrimStatementHtmlContent(HtmlDocument doc)
   {
     var problemStatementNode = doc.DocumentNode.SelectSingleNode("//div[@class='problem-statement']");
     if (problemStatementNode == null)
     {
-      Log.Warn($"Cannot trim statement html");
+      this.logger.LogWarning("Cannot trim statement html");
       return;
     }
 
@@ -98,25 +103,27 @@ internal sealed class StatementDownloader
     using var process = Process.Start(si);
     if (process == null)
     {
-      Log.Error($"Cannot start process {si.FileName} {si.Arguments}");
+      this.logger.LogError("Cannot start process {wgetExe} {wgetArgs}", si.FileName, si.Arguments);
       return false;
     }
     var error = process.StandardError.ReadToEnd();
     process.WaitForExit();
     if (!string.IsNullOrEmpty(error))
     {
-      Log.Error($"Command \"{si.FileName} {si.Arguments}\" executed with error (exit code {process.ExitCode}): " +
-        error);
+      this.logger.LogError(
+        "Command \"{wgetExe} {wgetArgs}\" executed with error (exit code {exitCode}): {error}",
+        si.FileName, si.Arguments, process.ExitCode, error);
       return false;
     }
-    Log.Trace($"Command \"{si.FileName} {si.Arguments}\" executed successfully");
+    this.logger.LogTrace("Command \"{wgetExe} {wgetArgs}\" executed successfully", si.FileName, si.Arguments);
     return true;
   }
 
-  public StatementDownloader(Throttle throttle, string wgetExePath, string lang = "ru")
+  public StatementDownloader(IThrottleFactory throttleFactory, ILogger<StatementDownloader> logger, Options options)
   {
-    this.throttle = throttle;
-    this.wgetExePath = wgetExePath;
-    this.lang = lang;
+    this.logger = logger;
+    this.throttle = throttleFactory.Create(TimeSpan.FromMilliseconds(1000), true);
+    this.wgetExePath = options.WgetExePath;
+    this.lang = "ru";
   }
 }

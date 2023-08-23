@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json.schemastore.org/launchsettings.json",
+  "profiles": {
+    "CodeforcesDownloader (Linux)": {
+      "commandName": "Project",
+      "commandLineArgs": "-f /home/mike/Downloads/CodeforcesDownloader -h m1_k3"
+    },
+    "CodeforcesDownloader (Windows)": {
+      "commandName": "Project",
+      "commandLineArgs": "-f %USERPROFILE%\\Downloads\\CodeforcesDownloader -h m1_k3"
+    }
+  }
+}
